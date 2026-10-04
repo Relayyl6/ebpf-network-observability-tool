@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "common",
+    "userspace",
+    "xtask",
+]
+exclude = [
+    "bpf",
+]
+resolver = "2"
