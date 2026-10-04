@@ -3,6 +3,8 @@ use log::{warn, info};
 use crate::output::emit_anomaly;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Instant, Duration};
+use tokio::sync::broadcast;
+use serde_json::json;
 
 pub struct AnomalyEngine {
     /// Maps PID to a sliding window of timestamps when anomalies occurred
@@ -16,7 +18,7 @@ impl AnomalyEngine {
         }
     }
 
-    pub fn process_event(&mut self, event: &AnomalyEvent) {
+    pub fn process_event(&mut self, event: &AnomalyEvent, tx: &broadcast::Sender<String>) {
         let now = Instant::now();
         let history = self.pid_history.entry(event.pid).or_insert_with(VecDeque::new);
         history.push_back(now);
@@ -39,6 +41,25 @@ impl AnomalyEngine {
         } else {
             info!("Anomaly detected for PID {}. (Total last min: {})", event.pid, anomaly_count_last_minute);
         }
+
+        // Broadcast to websocket
+        let src_ip = std::net::Ipv4Addr::from(event.src_ip).to_string();
+        let dst_ip = std::net::Ipv4Addr::from(event.dst_ip).to_string();
+        
+        let _ = tx.send(json!({
+            "type": "anomaly",
+            "data": {
+                "ts": event.ts,
+                "pid": event.pid,
+                "src_ip": src_ip,
+                "dst_ip": dst_ip,
+                "src_port": event.src_port,
+                "dst_port": event.dst_port,
+                "anomaly_flags": event.anomaly_flags,
+                "bytes": event.bytes,
+                "packets": event.packets
+            }
+        }).to_string());
 
         // Export event
         emit_anomaly(event);

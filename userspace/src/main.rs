@@ -17,11 +17,41 @@ struct Opt {
     iface: String,
 }
 
+use axum::{
+    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State},
+    response::IntoResponse,
+    routing::get,
+    Router,
+};
+use tokio::sync::broadcast;
+use futures::{sink::SinkExt, stream::StreamExt};
+use serde_json::json;
+
+#[derive(Clone)]
+struct AppState {
+    tx: broadcast::Sender<String>,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let opt = Opt::parse();
     env_logger::init();
     
+    // Broadcast channel for WebSocket
+    let (tx, _rx) = broadcast::channel(100);
+    let app_state = AppState { tx: tx.clone() };
+
+    // Start WebSocket Server
+    tokio::spawn(async move {
+        let app = Router::new()
+            .route("/ws", get(ws_handler))
+            .with_state(app_state);
+
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3030").await.unwrap();
+        log::info!("WebSocket Server listening on ws://127.0.0.1:3030/ws");
+        axum::serve(listener, app).await.unwrap();
+    });
+
     // Bump RLIMIT_MEMLOCK to allow BPF map creation on older WSL kernels
     let rlim = libc::rlimit {
         rlim_cur: libc::RLIM_INFINITY,
@@ -60,10 +90,10 @@ async fn main() -> anyhow::Result<()> {
         tokio::select! {
             _ = interval.tick() => {
                 // 1. Drain ring buffer
-                ringbuf::drain(&mut anomaly_events_map, &mut engine);
+                ringbuf::drain(&mut anomaly_events_map, &mut engine, &tx);
 
                 // 2. Snapshot
-                flow_map::snapshot(&flow_stats);
+                flow_map::snapshot(&flow_stats, &tx);
             }
             _ = tokio::signal::ctrl_c() => {
                 info!("Exiting...");
@@ -73,4 +103,22 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| handle_socket(socket, state))
+}
+
+async fn handle_socket(mut socket: WebSocket, state: AppState) {
+    let mut rx = state.tx.subscribe();
+
+    // Stream messages from broadcast channel to the websocket
+    while let Ok(msg) = rx.recv().await {
+        if socket.send(Message::Text(msg)).await.is_err() {
+            break; // Client disconnected
+        }
+    }
 }
