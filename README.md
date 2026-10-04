@@ -1,5 +1,7 @@
 # eBPF Network Observability Tool
 
+![eBPF Dashboard UI](assets/ui-screenshot.png)
+
 This project is a high-performance, low-overhead network observability engine built with **eBPF (Extended Berkeley Packet Filter)** and **Rust**. 
 It acts as a kernel-level security and monitoring platform that intercepts network traffic at the lowest possible level before it even reaches the operating system's networking stack.
 
@@ -7,7 +9,7 @@ It acts as a kernel-level security and monitoring platform that intercepts netwo
 The goal is to track every single TCP connection on a Linux machine in real-time without slowing down the server. 
 It maps raw network packets directly to the process ID (PID) that created them, allowing you to answer the critical security question: *"Which specific application on my server is communicating with this IP address?"*
 
-It also features a sliding-window **Anomaly Engine** that can detect suspicious behavior (like massive data exfiltration spikes or stuck SYN-floods) and emit structured JSON alerts to userspace within microseconds.
+It also features a sliding-window **Anomaly Engine** that can detect suspicious behavior (like massive data exfiltration spikes or stuck SYN-floods) and emit structured JSON alerts to userspace within microseconds. These alerts can be viewed in the terminal, or streamed in real-time to the **Live Dashboard UI** via WebSockets.
 
 ## Quick Links
 - [Design](docs/design.md) — mental model, constraints, architecture
@@ -126,6 +128,17 @@ When running under load, you will see output like this:
 * **src_port / dst_port**: Extracted from the TCP header.
 * **anomaly_flags**: Bitmask describing the rule that was triggered (e.g., `2` for `DATA_SPIKE`).
 * **Snapshot**: Periodically prints the total active state residing inside the kernel's eBPF Hash Maps without interrupting traffic flow.
+
+## Web UI Dashboard
+
+The project includes a standalone HTML/JS dashboard that visualizes the kernel metrics in real-time. The Rust backend automatically spins up an Axum WebSocket server on port `3030`.
+
+To view the dashboard:
+1. Start the eBPF kernel orchestrator:
+   `sudo -E RUST_LOG=info ~/.cargo/bin/cargo run --package xtask -- run -- --iface lo`
+2. Open `ui/index.html` in any web browser. 
+
+The UI uses zero dependencies (loaded via CDN) and will automatically connect to the WebSocket and begin graphing network throughput, tracking active flows, and displaying a live feed of kernel anomalies.
 
 ## Requirements
 - Linux kernel ≥ 5.8 (WSL2 is natively supported)
