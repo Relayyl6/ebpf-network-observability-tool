@@ -95,10 +95,6 @@ pub struct AnomalyEvent {
 | `PID_BINDINGS` | `HashMap` | `FiveTuple` | `u32` | 10K |
 | `ANOMALY_EVENTS` | `RingBuf` | — | `AnomalyEvent` | 256 KB |
 
-## Schema Versioning
-
-Bump the `FLOW_SCHEMA_VERSION` in `common/src/lib.rs` whenever a key or value
-layout changes. Userspace checks this at load time.
 
 ## Cross-References
 - [design.md](design.md)

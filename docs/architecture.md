@@ -9,45 +9,45 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                         KERNEL SPACE                        │
 │                                                             │
-│  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐  │
-│  │ TC ingress   │   │ TC egress    │   │ kprobe         │  │
-│  │ (count rx)   │   │ (count tx)   │   │ tcp_v4_connect │  │
-│  └──────┬───────┘   └──────┬───────┘   └───────┬────────┘  │
-│         │                  │                   │           │
-│         ▼                  ▼                   ▼           │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              BPF MAPS                               │   │
-│  │  FLOW_STATS (LRU_HASH)       PID_BINDINGS (HASH)    │   │
-│  └─────────────────────────────────────────────────────┘   │
-│         │                                                  │
-│         ▼                                                  │
-│  ┌──────────────┐   ┌──────────────────────────────────┐   │
-│  │ ringbuf      │◄──│ anomaly flags set in FlowStats   │   │
-│  │ (events)     │   └──────────────────────────────────┘   │
-│  └──────┬───────┘                                          │
-│         │                                                  │
-│  ┌──────▼───────┐                                          │
-│  │ tracepoint   │  sched_process_exit → orphan flows       │
-│  └──────────────┘                                          │
+│  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐   │
+│  │ TC ingress   │   │ TC egress    │   │ kprobe         │   │
+│  │ (count rx)   │   │ (count tx)   │   │ tcp_v4_connect │   │
+│  └──────┬───────┘   └──────┬───────┘   └───────┬────────┘   │
+│         │                  │                   │            │
+│         ▼                  ▼                   ▼            │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              BPF MAPS                               │    │
+│  │  FLOW_STATS (LRU_HASH)       PID_BINDINGS (HASH)    │    │
+│  └─────────────────────────────────────────────────────┘    │
+│         │                                                   │
+│         ▼                                                   │
+│  ┌──────────────┐   ┌──────────────────────────────────┐    │
+│  │ ringbuf      │◄──│ anomaly flags set in FlowStats   │    │
+│  │ (events)     │   └──────────────────────────────────┘    │
+│  └──────┬───────┘                                           │
+│         │                                                   │
+│  ┌──────▼───────┐                                           │
+│  │ tracepoint   │  sched_process_exit → orphan flows        │
+│  └──────────────┘                                           │
 └─────────┬───────────────────────────────────────────────────┘
           │
           ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                        USERSPACE (Rust)                     │
 │                                                             │
-│  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐  │
-│  │ main.rs      │   │ ringbuf.rs   │   │ flow_map.rs    │  │
-│  │ (aya load)   │   │ (drain)      │   │ (snapshot)     │  │
-│  └──────┬───────┘   └──────┬───────┘   └───────┬────────┘  │
-│         │                  │                   │           │
-│         ▼                  ▼                   ▼           │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              anomaly.rs (thresholds)                │   │
-│  └──────────────────────┬──────────────────────────────┘   │
+│  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐   │
+│  │ main.rs      │   │ ringbuf.rs   │   │ flow_map.rs    │   │
+│  │ (aya load)   │   │ (drain)      │   │ (snapshot)     │   │
+│  └──────┬───────┘   └──────┬───────┘   └───────┬────────┘   │
+│         │                  │                   │            │
+│         ▼                  ▼                   ▼            │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              anomaly.rs (thresholds)                │    │
+│  └──────────────────────┬──────────────────────────────┘    │
 │                         ▼                                   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              output.rs (stdout / JSON / Prom)       │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              output.rs (stdout / JSON / WebSocket)  │    │
+│  └─────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,11 +72,11 @@
 
 | Module | Responsibility |
 |--------|----------------|
-| `main.rs` | CLI parsing, wiring, aya program load/attach/detach, event loop |
+| `main.rs` | CLI, wiring, aya program load, event loop, Axum WebSocket server |
 | `ringbuf.rs` | Ring buffer drain (non-blocking) |
 | `flow_map.rs` | Periodic snapshot of `FLOW_STATS` |
 | `anomaly.rs` | Thresholds, correlation, scoring |
-| `output.rs` | stdout / JSON / Prometheus |
+| `output.rs` | stdout / JSON |
 
 ## Dependencies
 
@@ -85,6 +85,7 @@
 - `clap` — CLI
 - `serde` + `serde_json` — output
 - `tokio` — standard async executor for aya userspace
+- `axum` — WebSocket Server for UI Dashboard
 
 ## Cross-References
 - [design.md](design.md)

@@ -93,10 +93,6 @@ See [data-model.md](data-model.md) for full schemas.
 
 See [roadmap.md](roadmap.md) and [verifier-notes.md](verifier-notes.md).
 
-## 8. Open Questions
-
-- Should flows outlive their process? See [decisions.md](decisions.md#flow-lifetime).
-- Should PID binding map be GC'd on flow close? See [decisions.md](decisions.md#pid-binding-gc).
 
 ## Cross-References
 - [README.md](../README.md)

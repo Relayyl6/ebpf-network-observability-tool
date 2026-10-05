@@ -36,10 +36,10 @@
 - Blog post + runbook
 - **Deliverable**: 1h stability, documentation complete
 
-## Open Questions
-- [ ] Flow lifetime: outlive process?
-- [ ] PID binding GC strategy?
-- [ ] Prometheus exporter in MVP or later?
+## Open Questions (Resolved)
+- [x] Flow lifetime: outlive process? -> **Decision: Yes. Flows are stored in an `LruHashMap` so they persist after process exit to capture short-lived exfiltrations, and auto-evict when the map fills up.**
+- [x] PID binding GC strategy? -> **Decision: We defer strict GC for now. We rely on the natural churn of flow matching, though transitioning `PID_BINDINGS` to an `LruHashMap` is planned to fully automate GC without userspace intervention.**
+- [x] Prometheus exporter in MVP or later? -> **Decision: Replaced with a real-time Axum WebSocket + standalone HTML/JS Dashboard for the MVP.**
 
 ## Cross-References
 - [design.md](design.md)
